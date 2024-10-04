@@ -1,0 +1,98 @@
+** Assumptions
+ubuntu derivative linux
+guix installed
+spacemacs installed
+
+search &&& for placeholders that need completion
+
+** gptel
+
+#+begin_src bash
+guix install emacs-gptel
+#+end_src
+
+in .spacemacs user-config
+#+begin_src lisp
+    ;;gptel settings
+    (require 'gptel)
+                                          ;make a default model
+    (setq
+     gptel-model "claude-3-5-sonnet-20240620"
+     gptel-backend (gptel-make-anthropic "claude"
+                     :stream t :key "&&&"))
+                                          ;register a local ollama backend
+    (gptel-make-ollama "ollama"             ;Any name of your choosing
+      :host "localhost:11434"               ;Where it's running
+      :stream t                             ;Stream responses
+      :models '("zephyr" "ollama3"))        ;List of models
+                                          ;default
+    (setq gptel-default-mode "org-mode")
+                                          ;keybindings, SPC-o-m
+    (spacemacs/set-leader-keys "os" 'gptel-send)
+    (spacemacs/set-leader-keys "om" 'gptel-menu)
+#+end_src
+
+** gnus email for gmail
+*** setup authsource
+
+Create an application password for gmail
+Enable two-factor authentication for your Gmail account and generate an app-specific password.
+https://support.google.com/accounts/answer/185833?hl=en
+
+Create the ~/.authinfo.gpg file:
+   #+begin_src bash
+     guix install gnupg
+     gpg --gen-key #create a gpg key
+     touch ~/.authinfo
+     gpg -c ~/.authinfo #-> ~/.authinfo.gpg
+     chmod 600 ~/.authinfo.gpg
+     rm ~/.authinfo
+   #+end_src
+
+Edit the encrypted file.gpg in emacs, Add your credentials:
+   #+begin_src
+   machine smtp.gmail.com login &&&your.email@gmail.com password &&&your-app-specific-password-noSPC port 587
+   machine imap.gmail.com login &&&your.email@gmail.com password &&&your-app-specific-password-noSPC port 993
+   #+end_src
+Save and close the file. GPG will automatically encrypt it.
+
+*** setup gnus
+add gnus layer to layers
+add gnus settings code to user-config
+   #+begin_src lisp
+
+  ;;gnus settings
+                                        ; set variables
+  (setq user-full-name "&&&"
+        user-mail-address "&&&@gmail.com")
+
+                                        ; set auth-source
+  (setq auth-sources '("~/.authinfo.gpg"))
+                                        ; get email store in nnml
+  (setq gnus-secondary-select-methods
+        '((nnimap "gmail"
+                  (nnimap-address "imap.gmail.com")
+                  (nnimap-server-port 993)
+                  (nnmail-expiry-target "nnimap+gmail:[Gmail]/Trash") ;move expired to
+                  (nnmail-expiry-wait immediate) ;marked expired, process now
+                  (nnimap-stream ssl))))
+                                        ;send email via gmail
+  (setq message-send-mail-function 'smtpmail-send-it
+        smtpmail-default-smtp-server "smtp.gmail.com"
+        smtpmail-smtp-service 587);set sending SMTP service port
+                                        ;make gnus NOT ignore [Gmail] mailboxes
+  (setq gnus-ignored-newsgroups "^to\\.\\|^[0-9. ]+\\( \\|$\\)\\|^[\"]\"[#'()]")
+
+                                        ;archive outgoing email in sent folder on imap.gmail.com
+  (setq gnus-message-archive-method '(nnimap "imap.gmail.com")
+        gnus-message-archive-group "[Gmail]/Sent Mail")
+                                        ;set posting styles
+  (setq gnus-posting-styles
+        '(
+          ((header "to" "&&&@gmail.com") ;set return email address
+           (address "&&&@gmail.com"))))
+                                        ;store email in a directory
+  (setq nnml-directory "~/email")
+  (setq message-directory "~/email")
+
+   #+end_src
